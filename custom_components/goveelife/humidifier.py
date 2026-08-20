@@ -332,12 +332,12 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
                 type(e).__name__,
             )
 
-    async def async_set_mode(self, preset_mode: str) -> None:
+    async def async_set_mode(self, mode: str) -> None:
         """Set new target preset mode."""
         state_capability = {
             "type": "devices.capabilities.work_mode",
             "instance": "workMode",
-            "value": self._attr_preset_modes_mapping_set[preset_mode],
+            "value": self._attr_preset_modes_mapping_set[mode],
         }
         if await async_GoveeAPI_ControlDevice(self.hass, self._entry_id, self._device_cfg, state_capability):
             self.async_write_ha_state()
