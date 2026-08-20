@@ -29,13 +29,21 @@ platform = "humidifier"
 platform_device_types = ["devices.types.humidifier", "devices.types.dehumidifier"]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+):
     """Set up the humidifier platform."""
-    _LOGGER.debug("Setting up %s platform entry: %s | %s", platform, DOMAIN, entry.entry_id)
+    _LOGGER.debug(
+        "Setting up %s platform entry: %s | %s", platform, DOMAIN, entry.entry_id
+    )
     entities = []
 
     try:
-        _LOGGER.debug("%s - async_setup_entry %s: Getting cloud devices from data store", entry.entry_id, platform)
+        _LOGGER.debug(
+            "%s - async_setup_entry %s: Getting cloud devices from data store",
+            entry.entry_id,
+            platform,
+        )
         entry_data = hass.data[DOMAIN][entry.entry_id]
         api_devices = entry_data[CONF_DEVICES]
     except Exception as e:
@@ -54,9 +62,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             if device_cfg.get("type", STATE_UNKNOWN) not in platform_device_types:
                 continue
             device = device_cfg.get("device")
-            _LOGGER.debug("%s - async_setup_entry %s: Setup device: %s", entry.entry_id, platform, device)
+            _LOGGER.debug(
+                "%s - async_setup_entry %s: Setup device: %s",
+                entry.entry_id,
+                platform,
+                device,
+            )
             coordinator = entry_data[CONF_COORDINATORS][device]
-            entity = GoveeLifeHumidifier(hass, entry, coordinator, device_cfg, platform=platform)
+            entity = GoveeLifeHumidifier(
+                hass, entry, coordinator, device_cfg, platform=platform
+            )
             entities.append(entity)
         except Exception as e:
             _LOGGER.error(
@@ -69,7 +84,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             )
             return False
 
-    _LOGGER.info("%s - async_setup_entry: setup %s %s entities", entry.entry_id, len(entities), platform)
+    _LOGGER.info(
+        "%s - async_setup_entry: setup %s %s entities",
+        entry.entry_id,
+        len(entities),
+        platform,
+    )
     if not entities:
         return None
     async_add_entities(entities)
@@ -89,7 +109,9 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
 
     def _init_platform_specific(self, **kwargs):
         """Platform specific initialization actions."""
-        _LOGGER.debug("%s - %s: _init_platform_specific", self._api_id, self._identifier)
+        _LOGGER.debug(
+            "%s - %s: _init_platform_specific", self._api_id, self._identifier
+        )
         self.device_class = self._device_cfg.get("type", [])
         if self.device_class == "devices.types.humidifier":
             self._attr_device_class = HumidifierDeviceClass.HUMIDIFIER
@@ -104,7 +126,12 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
             self._identifier,
         )
         for cap in capabilities:
-            _LOGGER.debug("%s - %s: _init_platform_specific: processing cap: %s", self._api_id, self._identifier, cap)
+            _LOGGER.debug(
+                "%s - %s: _init_platform_specific: processing cap: %s",
+                self._api_id,
+                self._identifier,
+                cap,
+            )
             if cap["type"] == "devices.capabilities.on_off":
                 for option in cap["parameters"]["options"]:
                     if option["name"] == "on":
@@ -126,15 +153,25 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
                 for capFieldWork in cap["parameters"]["fields"]:
                     if capFieldWork["fieldName"] == "workMode":
                         for workOption in capFieldWork.get("options", []):
-                            self._attr_preset_modes_mapping[workOption["name"]] = workOption["value"]
+                            self._attr_preset_modes_mapping[workOption["name"]] = (
+                                workOption["value"]
+                            )
                     elif capFieldWork["fieldName"] == "modeValue":
-                        self._process_mode_value_options(capFieldWork.get("options", []))
-            elif cap["type"] == "devices.capabilities.range" and cap["instance"] == "humidity":
+                        self._process_mode_value_options(
+                            capFieldWork.get("options", [])
+                        )
+            elif (
+                cap["type"] == "devices.capabilities.range"
+                and cap["instance"] == "humidity"
+            ):
                 self._attr_min_humidity = cap["parameters"]["range"]["min"]
                 self._attr_max_humidity = cap["parameters"]["range"]["max"]
             else:
                 _LOGGER.debug(
-                    "%s - %s: _init_platform_specific: cap unhandled: %s", self._api_id, self._identifier, cap
+                    "%s - %s: _init_platform_specific: cap unhandled: %s",
+                    self._api_id,
+                    self._identifier,
+                    cap,
                 )
 
     def _process_mode_value_options(self, options: list) -> None:
@@ -162,7 +199,9 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
                 for gearOption in valueOption["options"]:
                     raw_name = gearOption.get("name")
                     gear_val = gearOption.get("value")
-                    gear_name = raw_name if raw_name else f"{mode_name}: Speed {gear_val}"
+                    gear_name = (
+                        raw_name if raw_name else f"{mode_name}: Speed {gear_val}"
+                    )
                     if work_mode_value is not None and gear_val is not None:
                         self._attr_available_modes.append(gear_name)
                         self._attr_preset_modes_mapping_set[gear_name] = {
@@ -258,7 +297,7 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
             return None
         try:
             return float(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             _LOGGER.warning(
                 "%s - %s: current_humidity: could not convert value to float: %s",
                 self._api_id,
@@ -284,20 +323,44 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
         """Return current mode."""
         return MODE_AUTO
 
-    async def async_turn_on(self, speed: str = None, mode: str = None, **kwargs) -> None:
-        """Async: Turn entity on"""
+    @property
+    def target_humidity(self) -> float | None:
+        """Return target humidity."""
+        return GoveeAPI_GetCachedStateValue(
+            self.hass,
+            self._entry_id,
+            self._device_cfg.get("device"),
+            "devices.capabilities.range",
+            "humidity",
+        )
+
+    async def async_turn_on(
+        self, speed: str = None, mode: str = None, **kwargs
+    ) -> None:
+        """Async: Turn entity on."""
         try:
-            _LOGGER.debug("%s - %s: async_turn_on: kwargs = %s", self._api_id, self._identifier, kwargs)
+            _LOGGER.debug(
+                "%s - %s: async_turn_on: kwargs = %s",
+                self._api_id,
+                self._identifier,
+                kwargs,
+            )
             if not self.is_on:
                 state_capability = {
                     "type": "devices.capabilities.on_off",
                     "instance": "powerSwitch",
                     "value": self._state_mapping_set[STATE_ON],
                 }
-                if await async_GoveeAPI_ControlDevice(self.hass, self._entry_id, self._device_cfg, state_capability):
+                if await async_GoveeAPI_ControlDevice(
+                    self.hass, self._entry_id, self._device_cfg, state_capability
+                ):
                     self.async_write_ha_state()
             else:
-                _LOGGER.debug("%s - %s: async_turn_on: device already on", self._api_id, self._identifier)
+                _LOGGER.debug(
+                    "%s - %s: async_turn_on: device already on",
+                    self._api_id,
+                    self._identifier,
+                )
         except Exception as e:
             _LOGGER.error(
                 "%s - %s: async_turn_on failed: %s (%s.%s)",
@@ -311,17 +374,28 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
     async def async_turn_off(self, **kwargs) -> None:
         """Async: Turn entity off"""
         try:
-            _LOGGER.debug("%s - %s: async_turn_off: kwargs = %s", self._api_id, self._identifier, kwargs)
+            _LOGGER.debug(
+                "%s - %s: async_turn_off: kwargs = %s",
+                self._api_id,
+                self._identifier,
+                kwargs,
+            )
             if self.is_on:
                 state_capability = {
                     "type": "devices.capabilities.on_off",
                     "instance": "powerSwitch",
                     "value": self._state_mapping_set[STATE_OFF],
                 }
-                if await async_GoveeAPI_ControlDevice(self.hass, self._entry_id, self._device_cfg, state_capability):
+                if await async_GoveeAPI_ControlDevice(
+                    self.hass, self._entry_id, self._device_cfg, state_capability
+                ):
                     self.async_write_ha_state()
             else:
-                _LOGGER.debug("%s - %s: async_turn_on: device already off", self._api_id, self._identifier)
+                _LOGGER.debug(
+                    "%s - %s: async_turn_on: device already off",
+                    self._api_id,
+                    self._identifier,
+                )
         except Exception as e:
             _LOGGER.error(
                 "%s - %s: async_turn_off failed: %s (%s.%s)",
@@ -339,5 +413,29 @@ class GoveeLifeHumidifier(HumidifierEntity, GoveeLifePlatformEntity):
             "instance": "workMode",
             "value": self._attr_preset_modes_mapping_set[mode],
         }
-        if await async_GoveeAPI_ControlDevice(self.hass, self._entry_id, self._device_cfg, state_capability):
+        if await async_GoveeAPI_ControlDevice(
+            self.hass, self._entry_id, self._device_cfg, state_capability
+        ):
+            self.async_write_ha_state()
+
+    async def async_set_humidity(self, humidity: int) -> None:
+        """Set new target humidity."""
+        state_capability = {
+            "type": "devices.capabilities.range",
+            "instance": "humidity",
+            "value": humidity,
+        }
+        if await async_GoveeAPI_ControlDevice(
+            self.hass, self._entry_id, self._device_cfg, state_capability
+        ):
+            self.async_write_ha_state()
+
+        state_capability = {
+            "type": "devices.capabilities.work_mode",
+            "instance": "workMode",
+            "value": "Auto",
+        }
+        if await async_GoveeAPI_ControlDevice(
+            self.hass, self._entry_id, self._device_cfg, state_capability
+        ):
             self.async_write_ha_state()
